@@ -5,6 +5,7 @@ import 'package:video_editor/domain/bloc/controller.dart';
 import 'package:video_editor/domain/entities/cover_data.dart';
 import 'package:video_editor/domain/entities/transform_data.dart';
 import 'package:video_editor/ui/cover/methods/buildSingleCover.dart';
+import 'package:video_editor/ui/cover/methods/calculateCovertRect.dart';
 import 'package:video_editor/ui/cover/methods/generateThumbnails.dart';
 
 class CoverSelection extends StatefulWidget {
@@ -37,7 +38,8 @@ class _CoverSelectionState extends State<CoverSelection>
     with
         AutomaticKeepAliveClientMixin,
         GenerateThumbnailsMethodMixin,
-        BuildSingleCoverMethodMixin {
+        BuildSingleCoverMethodMixin,
+        CalculateCovertRectAndLayoutMixin {
   double _aspect = 1.0, _width = 1.0;
   Duration? _startTrim, _endTrim;
   Size _layout = Size.zero;
@@ -77,7 +79,8 @@ class _CoverSelectionState extends State<CoverSelection>
   bool get wantKeepAlive => true;
 
   void _scaleRect() {
-    _rect.value = _calculateCoverRect();
+    _rect.value =
+        calculateCoverRect(controller: widget.controller, layout: _layout);
     _transform.value = TransformData.fromRect(
       _rect.value,
       _layout,
@@ -87,7 +90,7 @@ class _CoverSelectionState extends State<CoverSelection>
     if (widget.controller.preferredCropAspectRatio != null &&
         _aspect != widget.controller.preferredCropAspectRatio) {
       _aspect = widget.controller.preferredCropAspectRatio!;
-      _layout = _calculateLayout();
+      _layout = calculateLayout(aspect: _aspect, height: widget.height);
     }
 
     // if trim values changed generate new thumbnails
@@ -105,27 +108,6 @@ class _CoverSelectionState extends State<CoverSelection>
     }
   }
 
-  Rect _calculateCoverRect() {
-    final Offset min = widget.controller.minCrop;
-    final Offset max = widget.controller.maxCrop;
-    return Rect.fromPoints(
-      Offset(
-        min.dx * _layout.width,
-        min.dy * _layout.height,
-      ),
-      Offset(
-        max.dx * _layout.width,
-        max.dy * _layout.height,
-      ),
-    );
-  }
-
-  Size _calculateLayout() {
-    return _aspect < 1.0
-        ? Size(widget.height * _aspect, widget.height)
-        : Size(widget.height, widget.height / _aspect);
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -133,8 +115,9 @@ class _CoverSelectionState extends State<CoverSelection>
       final double width = box.maxWidth;
       if (_width != width) {
         _width = width;
-        _layout = _calculateLayout();
-        _rect.value = _calculateCoverRect();
+        _layout = calculateLayout(aspect: _aspect, height: widget.height);
+        _rect.value =
+            calculateCoverRect(controller: widget.controller, layout: _layout);
       }
 
       return StreamBuilder(
