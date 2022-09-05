@@ -1,12 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:video_editor/domain/entities/cover_data.dart';
-import 'package:video_editor/domain/entities/cover_style.dart';
-import 'package:video_editor/domain/entities/transform_data.dart';
-import 'package:video_editor/ui/crop/crop_grid_painter.dart';
-import 'package:video_editor/ui/transform.dart';
 import 'package:video_editor/domain/bloc/controller.dart';
+import 'package:video_editor/domain/entities/cover_data.dart';
+import 'package:video_editor/domain/entities/transform_data.dart';
+import 'package:video_editor/ui/cover/methods/buildSingleCover.dart';
+import 'package:video_editor/ui/cover/methods/generateThumbnails.dart';
 
 class CoverSelection extends StatefulWidget {
   /// Slider that allow to select a generated cover
@@ -35,7 +34,10 @@ class CoverSelection extends StatefulWidget {
 }
 
 class _CoverSelectionState extends State<CoverSelection>
-    with AutomaticKeepAliveClientMixin {
+    with
+        AutomaticKeepAliveClientMixin,
+        GenerateThumbnailsMethodMixin,
+        BuildSingleCoverMethodMixin {
   double _aspect = 1.0, _width = 1.0;
   Duration? _startTrim, _endTrim;
   Size _layout = Size.zero;
@@ -43,7 +45,10 @@ class _CoverSelectionState extends State<CoverSelection>
   final ValueNotifier<TransformData> _transform =
       ValueNotifier<TransformData>(TransformData());
 
-  late Stream<List<CoverData>> _stream = (() => _generateThumbnails())();
+  late Stream<List<CoverData>> _stream = (() => generateThumbnails(
+      controller: widget.controller,
+      thumbnailImageQuality: widget.quality,
+      thumbnailsQuantity: widget.quantity))();
 
   @override
   void dispose() {
@@ -92,36 +97,11 @@ class _CoverSelectionState extends State<CoverSelection>
       _startTrim = widget.controller.startTrim;
       _endTrim = widget.controller.endTrim;
       setState(() {
-        _stream = _generateThumbnails();
+        _stream = generateThumbnails(
+            controller: widget.controller,
+            thumbnailImageQuality: widget.quality,
+            thumbnailsQuantity: widget.quantity);
       });
-    }
-  }
-
-  Stream<List<CoverData>> _generateThumbnails() async* {
-    final int duration = widget.controller.isTrimmmed
-        ? (widget.controller.endTrim - widget.controller.startTrim)
-            .inMilliseconds
-        : widget.controller.videoDuration.inMilliseconds;
-    final double eachPart = duration / widget.quantity;
-    List<CoverData> byteList = [];
-    for (int i = 0; i < widget.quantity; i++) {
-      try {
-        final CoverData bytes = await widget.controller.generateCoverThumbnail(
-            timeMs: (widget.controller.isTrimmmed
-                    ? (eachPart * i) +
-                        widget.controller.startTrim.inMilliseconds
-                    : (eachPart * i))
-                .toInt(),
-            quality: widget.quality);
-
-        if (bytes.thumbData != null) {
-          byteList.add(bytes);
-        }
-      } catch (e) {
-        debugPrint(e.toString());
-      }
-
-      yield byteList;
     }
   }
 
@@ -172,15 +152,15 @@ class _CoverSelectionState extends State<CoverSelection>
                               return ValueListenableBuilder(
                                 valueListenable:
                                     widget.controller.selectedCoverNotifier,
-                                builder:
-                                    (context, CoverData? selectedCover, __) =>
-                                        _buildSingleCover(
-                                  coverData,
-                                  transform,
-                                  widget.controller.coverStyle,
-                                  isSelected: coverData.sameTime(
-                                      widget.controller.selectedCoverVal!),
-                                ),
+                                builder: (context, CoverData? selectedCover,
+                                        __) =>
+                                    buildSingleCover(coverData, transform,
+                                        widget.controller.coverStyle,
+                                        isSelected: coverData.sameTime(widget
+                                            .controller.selectedCoverVal!),
+                                        controller: widget.controller,
+                                        layout: _layout,
+                                        rect: _rect),
                               );
                             }))
                         .toList()
@@ -189,60 +169,5 @@ class _CoverSelectionState extends State<CoverSelection>
                 : const SizedBox();
           });
     });
-  }
-
-  Widget _buildSingleCover(
-    CoverData cover,
-    TransformData transform,
-    CoverSelectionStyle coverStyle, {
-    required bool isSelected,
-  }) {
-    return InkWell(
-      onTap: () => widget.controller.updateSelectedCover(cover),
-      child: Stack(
-        alignment: coverStyle.selectedIndicatorAlign,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected
-                    ? coverStyle.selectedBorderColor
-                    : Colors.transparent,
-                width: coverStyle.selectedBorderWidth,
-              ),
-            ),
-            child: CropTransform(
-              transform: transform,
-              child: Container(
-                alignment: Alignment.center,
-                height: _layout.height,
-                width: _layout.width,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image(
-                      image: MemoryImage(cover.thumbData!),
-                      width: _layout.width,
-                      height: _layout.height,
-                    ),
-                    CustomPaint(
-                      size: _layout,
-                      painter: CropGridPainter(
-                        _rect.value,
-                        showGrid: false,
-                        style: widget.controller.cropStyle,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          isSelected && coverStyle.selectedIndicator != null
-              ? coverStyle.selectedIndicator!
-              : const SizedBox.shrink(),
-        ],
-      ),
-    );
   }
 }

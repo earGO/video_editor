@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:video_editor/domain/bloc/controller.dart';
 import 'package:video_editor/domain/entities/cover_data.dart';
 import 'package:video_editor/domain/entities/transform_data.dart';
-import 'package:video_editor/domain/bloc/controller.dart';
 import 'package:video_editor/ui/crop/crop_grid_painter.dart';
 import 'package:video_editor/ui/transform.dart';
 
@@ -83,17 +83,18 @@ class _CoverViewerState extends State<CoverViewer> {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
-        valueListenable: _transform,
-        builder: (_, TransformData transform, __) => ValueListenableBuilder(
-            valueListenable: widget.controller.selectedCoverNotifier,
-            builder: (context, CoverData? selectedCover, __) => selectedCover
-                        ?.thumbData ==
-                    null
-                ? Center(child: Text(widget.noCoverText))
-                : CropTransform(
-                    transform: transform,
-                    child: Center(
-                        child: Stack(children: [
+      valueListenable: _transform,
+      builder: (_, TransformData transform, __) => ValueListenableBuilder(
+        valueListenable: widget.controller.selectedCoverNotifier,
+        builder: (context, CoverData? selectedCover, __) => selectedCover
+                    ?.thumbData ==
+                null
+            ? Center(child: Text(widget.noCoverText))
+            : CropTransform(
+                transform: transform,
+                child: Center(
+                  child: Stack(
+                    children: [
                       AspectRatio(
                         aspectRatio: widget.controller.video.value.aspectRatio,
                         child: Image(
@@ -102,39 +103,43 @@ class _CoverViewerState extends State<CoverViewer> {
                         ),
                       ),
                       AspectRatio(
-                          aspectRatio:
-                              widget.controller.video.value.aspectRatio,
-                          child: LayoutBuilder(
-                            builder: (_, constraints) {
-                              Size size = Size(
-                                  constraints.maxWidth, constraints.maxHeight);
-                              if (_layout != size) {
-                                _layout = size;
-                                // init the widget with controller values
-                                WidgetsBinding.instance
-                                    .addPostFrameCallback((_) {
-                                  _scaleRect();
-                                });
-                              }
+                        aspectRatio: widget.controller.video.value.aspectRatio,
+                        child: LayoutBuilder(
+                          builder: (_, constraints) {
+                            Size size = Size(
+                                constraints.maxWidth, constraints.maxHeight);
+                            if (_layout != size) {
+                              _layout = size;
+                              // init the widget with controller values
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _scaleRect();
+                              });
+                            }
 
-                              return ValueListenableBuilder(
-                                valueListenable: _rect,
-                                builder: (_, Rect value, __) {
-                                  return CustomPaint(
-                                    size: Size.infinite,
-                                    painter: CropGridPainter(
-                                      value,
-                                      style: _controller.cropStyle,
-                                      showGrid: false,
-                                      showCenterRects: _controller
-                                              .preferredCropAspectRatio ==
-                                          null,
-                                    ),
-                                  );
-                                },
-                              );
-                            },
-                          ))
-                    ])))));
+                            return ValueListenableBuilder(
+                              valueListenable: _rect,
+                              builder: (_, Rect value, __) {
+                                return CustomPaint(
+                                  size: Size.infinite,
+                                  painter: CropGridPainter(
+                                    value,
+                                    style: _controller.cropStyle,
+                                    showGrid: false,
+                                    showCenterRects:
+                                        _controller.preferredCropAspectRatio ==
+                                            null,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+      ),
+    );
   }
 }
